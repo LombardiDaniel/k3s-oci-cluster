@@ -6,6 +6,7 @@
     get_priv_ip_cmd: "hostname --all-ip-addresses | cut -d' ' -f1"
     lb_hostname: "{{ groups['lbhostname'][0] }}"
     lb_ip: "{{ groups['lb'][0] }}"
+    maintainer_email: "MAINTAINER_EMAIL"
 
   tasks:
     - name: Get node0_priv_ip # noqa: risky-shell-pipe
@@ -108,3 +109,12 @@
         content: "{{ output.stdout }}"
         dest: ./k3s.yml
         mode: "0600"
+
+    - name: Set base cert deployments
+      delegate_to: localhost
+      register: output
+      failed_when: output.rc != 0
+      changed_when: output.rc == 0
+      ansible.builtin.shell: |
+        awk '{gsub("MAINTAINER_EMAIL", "{{ maintainer_email }}"); print $0}' certs.template.yml > certs.yml
+        KUBECONFIG=./k3s.yml kubectl apply -f certs.yml
