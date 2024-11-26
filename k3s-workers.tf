@@ -61,14 +61,14 @@ resource "oci_core_instance" "k3s_extra_worker_node" {
     }
   }
 
-  shape = var.compute_shape
+  shape = var.amd_compute_shape
   shape_config {
-    memory_in_gbs = "6"
+    memory_in_gbs = "1"
     ocpus         = "1"
   }
 
   source_details {
-    source_id   = var.os_image_id
+    source_id   = var.amd_os_image_id
     source_type = "image"
   }
 

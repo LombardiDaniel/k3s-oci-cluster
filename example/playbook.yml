@@ -1,0 +1,110 @@
+---
+- name: Bootstrap k3s Cluster
+  remote_user: ubuntu
+  hosts: all
+  vars:
+    get_priv_ip_cmd: "hostname --all-ip-addresses | cut -d' ' -f1"
+    lb_hostname: "{{ groups['lbhostname'][0] }}"
+    lb_ip: "{{ groups['lb'][0] }}"
+
+  tasks:
+    - name: Get node0_priv_ip # noqa: risky-shell-pipe
+      delegate_to: "{{ groups['node0'][0] }}"
+      # when: "'node0' in group_names"
+      register: output
+      failed_when: output.rc != 0
+      changed_when: output.rc == 0
+      ansible.builtin.shell: |
+        {{ get_priv_ip_cmd }}
+
+    - name: Set node0_priv_ip
+      delegate_to: "{{ groups['node0'][0] }}"
+      ansible.builtin.set_fact:
+        node0_priv_ip: "{{ output.stdout }}"
+
+    # - name: Print node0
+    #   ansible.builtin.debug:
+    #     msg: "{{ node0_priv_ip }}"
+
+    - name: Get priv_ips # noqa: risky-shell-pipe
+      register: output
+      failed_when: output.rc != 0
+      changed_when: output.rc == 0
+      ansible.builtin.shell: |
+        {{ get_priv_ip_cmd }}
+
+    - name: Set each_priv_ip
+      ansible.builtin.set_fact:
+        priv_ip: "{{ output.stdout }}"
+
+    - name: Print priv_ips
+      ansible.builtin.debug:
+        msg: "{{ priv_ip }}"
+
+    - name: Run k3s init # noqa: command-instead-of-module risky-shell-pipe
+      when: "'node0' in group_names"
+      register: output
+      failed_when: output.rc != 0
+      changed_when: output.rc == 0
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+        --tls-san {{ lb_hostname }} \
+        --tls-san {{ priv_ip }} \
+        --node-external-ip {{ lb_ip }} \
+        --cluster-init
+
+    - name: Get cluster token # noqa: command-instead-of-module risky-shell-pipe
+      delegate_to: "{{ groups['node0'][0] }}"
+      become: true
+      register: output
+      failed_when: output.rc != 0
+      changed_when: output.rc == 0
+      ansible.builtin.shell: |
+        cat /var/lib/rancher/k3s/server/node-token
+
+    - name: Set cluster_token
+      delegate_to: "{{ groups['node0'][0] }}"
+      ansible.builtin.set_fact:
+        cluster_token: "{{ output.stdout }}"
+
+    # - name: Print cluster_token
+    #   ansible.builtin.debug:
+    #     msg: "{{ cluster_token }}"
+
+    - name: K3s join servers # noqa: command-instead-of-module risky-shell-pipe
+      when: "'servers' in group_names"
+      register: output
+      failed_when: output.rc != 0
+      changed_when: output.rc == 0
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+        --tls-san {{ lb_hostname }} \
+        --tls-san {{ priv_ip }} \
+        --server https://{{ node0_priv_ip }}:6443 \
+        --token {{ cluster_token }}
+
+    - name: K3s join clients # noqa: command-instead-of-module risky-shell-pipe
+      when: "'workers' in group_names"
+      register: output
+      failed_when: output.rc != 0
+      changed_when: output.rc == 0
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | sh -s - agent \
+        --server https://{{ node0_priv_ip }}:6443 \
+        --token {{ cluster_token }}
+
+    - name: Fix k3s.yml
+      become: true
+      delegate_to: "{{ groups['node0'][0] }}"
+      register: output
+      failed_when: output.rc != 0
+      changed_when: output.rc == 0
+      ansible.builtin.command: |
+        awk "{gsub(\"127.0.0.1\", \"{{ lb_hostname }}\"); print}" "/etc/rancher/k3s/k3s.yaml"
+
+    - name: Write kubeconfig
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: "{{ output.stdout }}"
+        dest: ./k3s.yml
+        mode: "0600"

@@ -51,13 +51,13 @@ resource "oci_core_instance_configuration" "k3s_server_template" {
         "user_data"           = data.cloudinit_config.k3s_server_tpl.rendered
       }
 
-      shape = var.compute_shape
+      shape = var.arm_compute_shape
       shape_config {
-        memory_in_gbs = "6"
-        ocpus         = "1"
+        ocpus         = "2"
+        memory_in_gbs = "12"
       }
       source_details {
-        image_id    = var.os_image_id
+        image_id    = var.arm_os_image_id
         source_type = "image"
       }
     }
@@ -117,13 +117,13 @@ resource "oci_core_instance_configuration" "k3s_worker_template" {
         "user_data"           = data.cloudinit_config.k3s_worker_tpl.rendered
       }
 
-      shape = var.compute_shape
+      shape = var.amd_compute_shape
       shape_config {
-        memory_in_gbs = "6"
+        memory_in_gbs = "1"
         ocpus         = "1"
       }
       source_details {
-        image_id    = var.os_image_id
+        image_id    = var.amd_os_image_id
         source_type = "image"
       }
     }

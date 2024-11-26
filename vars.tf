@@ -7,12 +7,17 @@ variable "availability_domain" {
 }
 
 variable "tenancy_ocid" {
-
+  type = string
 }
 
 variable "compartment_ocid" {
   type = string
 }
+
+# variable "cluster_domain_name" {
+#   type    = string
+#   default = ""
+# }
 
 variable "environment" {
   type = string
@@ -22,7 +27,11 @@ variable "cluster_name" {
   type = string
 }
 
-variable "os_image_id" {
+variable "arm_os_image_id" {
+  type = string
+}
+
+variable "amd_os_image_id" {
   type = string
 }
 
@@ -47,9 +56,14 @@ variable "public_key_path" {
   description = "Path to your public workstation SSH key"
 }
 
-variable "compute_shape" {
+variable "arm_compute_shape" {
   type    = string
   default = "VM.Standard.A1.Flex"
+}
+
+variable "amd_compute_shape" {
+  type    = string
+  default = "VM.Standard.E2.1.Micro"
 }
 
 variable "public_lb_shape" {
@@ -136,7 +150,7 @@ variable "ingress_controller_https_nodeport" {
 
 variable "k3s_server_pool_size" {
   type    = number
-  default = 1
+  default = 2
 }
 
 variable "k3s_worker_pool_size" {
@@ -146,7 +160,7 @@ variable "k3s_worker_pool_size" {
 
 variable "k3s_extra_worker_node" {
   type    = bool
-  default = true
+  default = false
 }
 
 variable "unique_tag_key" {
