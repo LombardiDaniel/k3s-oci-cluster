@@ -43,5 +43,4 @@ main.tf_ori
 ssl/
 
 *.ignore*
-*.lock
 hosts.ini
